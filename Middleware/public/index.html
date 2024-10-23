@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .note {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Notes App</h1>
+    
+    <form id="noteForm">
+        <input type="hidden" id="noteId" value="">
+        <div>
+            <input type="text" id="title" placeholder="Title" required>
+        </div>
+        <div>
+            <textarea id="content" placeholder="Content" required></textarea>
+        </div>
+        <button type="submit">Save Note</button>
+    </form>
+
+    <h2>All Notes</h2>
+    <div id="notesContainer"></div>
+
+    <script>
+        const noteForm = document.getElementById('noteForm');
+        const notesContainer = document.getElementById('notesContainer');
+        let isEditing = false;
+
+        // Fetch all notes
+        const fetchNotes = async () => {
+            const res = await fetch('/notes');
+            const notes = await res.json();
+            renderNotes(notes);
+        };
+
+        // Render notes in the DOM
+        const renderNotes = (notes) => {
+            notesContainer.innerHTML = '';
+            notes.forEach(note => {
+                const noteDiv = document.createElement('div');
+                noteDiv.classList.add('note');
+                noteDiv.innerHTML = `
+                    <h3>${note.title}</h3>
+                    <p>${note.content}</p>
+                    <button onclick="editNote(${note.id})">Edit</button>
+                    <button onclick="deleteNote(${note.id})">Delete</button>
+                `;
+                notesContainer.appendChild(noteDiv);
+            });
+        };
+
+        // Handle form submission
+        noteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+            const id = document.getElementById('noteId').value;
+
+            if (isEditing) {
+                await fetch(`/notes/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, content })
+                });
+                isEditing = false;
+            } else {
+                await fetch('/notes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, content })
+                });
+            }
+
+            noteForm.reset();
+            fetchNotes();
+        });
+
+        // Delete a note
+        const deleteNote = async (id) => {
+            await fetch(`/notes/${id}`, {
+                method: 'DELETE'
+            });
+            fetchNotes();
+        };
+
+        // Edit a note
+        const editNote = async (id) => {
+            const res = await fetch('/notes');
+            const notes = await res.json();
+            const note = notes.find(note => note.id == id);
+
+            document.getElementById('noteId').value = note.id;
+            document.getElementById('title').value = note.title;
+            document.getElementById('content').value = note.content;
+            isEditing = true;
+        };
+
+        // Initial load
+        fetchNotes();
+    </script>
+</body>
+</html>
